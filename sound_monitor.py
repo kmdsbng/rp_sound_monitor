@@ -3,6 +3,7 @@ import numpy as np
 import pyaudio
 import pygame
 from pygame.locals import *
+import datetime
 
 pygame.init()
 
@@ -14,6 +15,7 @@ CYAN = (128, 255, 0)
 RED = (255, 0, 0)
 GRAY = (128, 128, 128)
 BACK_GROUND_RED = (200, 0, 0)
+TEXT_RED = (255, 160, 160)
 
 ALERT_THRESHOLD = 500
 
@@ -42,8 +44,9 @@ carryOn = True
 clock = pygame.time.Clock()
 
 sound_logs =[]
-font = pygame.font.Font(None, 25)
+font = pygame.font.Font(None, 60)
 alert_count = 0
+alert_count_date = datetime.date.today()
 
 while carryOn:
     for event in pygame.event.get():
@@ -66,14 +69,21 @@ while carryOn:
         if max_sound < sound:
             max_sound = sound
 
+    text_color = WHITE
     if max_sound > ALERT_THRESHOLD:
         back_ground_color = BACK_GROUND_RED
 
-    alert_count_text = font.render("ALERT COUNT: %d" % (alert_count), True, (255,255,255))
+    if alert_count > 0:
+        text_color = TEXT_RED
+
 
     screen.fill(back_ground_color)
     pygame.draw.line(screen, RED, [0, 400 - ALERT_THRESHOLD / 2], [600, 400 - ALERT_THRESHOLD / 2], 1)
     pygame.draw.line(screen, GRAY, [0, 401], [600, 401], 1)
+
+    #alert_count_text = font.render("ALERT", True, text_color)
+    #screen.blit(alert_count_text, [605, 100])
+    alert_count_text = font.render("%d" % (alert_count), True, text_color)
     screen.blit(alert_count_text, [605, 100])
 
     for index, sound in enumerate(sound_logs):
@@ -124,7 +134,9 @@ while carryOn:
         sound_logs.pop(0)
     print(color + '{0}, {1}'.format(min, max) + END_TEXT)
 
-
+    if alert_count_date != datetime.date.today():
+        alert_count = 0
+        alert_count_date = datetime.date.today()
 
 
 pygame.quit()
