@@ -88,7 +88,7 @@ while carryOn:
 
     for index, sound in enumerate(sound_logs):
         graph_color = GREEN
-        width = 1
+        width = 3
         if sound > ALERT_THRESHOLD:
             graph_color = WHITE
             width = 30
@@ -99,7 +99,7 @@ while carryOn:
             graph_color = CYAN
             width = 5
 
-        x = sound_logs_len - index
+        x = (sound_logs_len - index) * 3
         pygame.draw.line(screen, graph_color, [x, 400], [x, 400 - sound / 2], width)
   
     pygame.display.flip()
@@ -107,6 +107,11 @@ while carryOn:
   
   #while stream.is_active():
     inputs = []
+    inputs.append(stream.read(CHUNK, False))
+    inputs.append(stream.read(CHUNK, False))
+    inputs.append(stream.read(CHUNK, False))
+    inputs.append(stream.read(CHUNK, False))
+    inputs.append(stream.read(CHUNK, False))
     inputs.append(stream.read(CHUNK, False))
     inputs.append(stream.read(CHUNK, False))
     inputs.append(stream.read(CHUNK, False))
@@ -130,7 +135,7 @@ while carryOn:
         color = CYAN_TEXT
   
     sound_logs = sound_logs + [max]
-    if len(sound_logs) > 600:
+    if len(sound_logs) > 200:
         sound_logs.pop(0)
     print(color + '{0}, {1}'.format(min, max) + END_TEXT)
 
