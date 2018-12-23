@@ -4,6 +4,8 @@ import pyaudio
 import pygame
 from pygame.locals import *
 import datetime
+import os
+import subprocess
 
 pygame.init()
 
@@ -28,6 +30,9 @@ RED_TEXT='\033[31m'
 YELLOW_TEXT='\033[33m'
 CYAN_TEXT='\033[36m'
 END_TEXT='\033[0m'
+
+pixela_token = os.environ['PIXELA_TOKEN']
+pixela_command = "curl -X PUT https://pixe.la/v1/users/kmdsbng/graphs/soundalert/increment -H 'X-USER-TOKEN:%s'" % (pixela_token)
 
 stream = audio.open(  format = pyaudio.paInt16,
         channels = 1,
@@ -129,6 +134,7 @@ while carryOn:
     if max > ALERT_THRESHOLD:
         color = RED_TEXT
         alert_count += 1
+        subprocess.call(pixela_command, shell=True)
     elif max > 200:
         color = YELLOW_TEXT
     elif max > 100:
