@@ -34,6 +34,13 @@ END_TEXT='\033[0m'
 pixela_token = os.environ['PIXELA_TOKEN']
 pixela_command = "curl -X PUT https://pixe.la/v1/users/kmdsbng/graphs/soundalert/increment -H 'X-USER-TOKEN:%s'" % (pixela_token)
 
+def is_night_time(target_time):
+    hour = target_time.hour
+    if hour >= 20 or hour <= 6:
+      return True
+    else:
+      return False
+
 stream = audio.open(  format = pyaudio.paInt16,
         channels = 1,
         rate = RATE,
@@ -50,6 +57,7 @@ clock = pygame.time.Clock()
 
 sound_logs =[]
 font = pygame.font.Font(None, 60)
+small_font = pygame.font.Font(None, 20)
 alert_count = 0
 alert_count_date = datetime.date.today()
 
@@ -61,6 +69,9 @@ while carryOn:
         pygame.display.set_mode(size)
     if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
         pygame.display.set_mode(size, FULLSCREEN)
+
+    now = datetime.datetime.now()
+    in_night = is_night_time(now)
 
     # Game logic
     #pygame.draw.rect(screen, RED, [55, 200, 100, 70], 0)
@@ -91,6 +102,14 @@ while carryOn:
     alert_count_text = font.render("%d" % (alert_count), True, text_color)
     screen.blit(alert_count_text, [605, 100])
 
+    if in_night:
+        night_str = "n"
+    else:
+        night_str = "d"
+
+    night_text = small_font.render(night_str, True, text_color)
+    screen.blit(night_text, [700, 450])
+
     for index, sound in enumerate(sound_logs):
         graph_color = GREEN
         width = 3
@@ -108,9 +127,7 @@ while carryOn:
         pygame.draw.line(screen, graph_color, [x, 400], [x, 400 - sound / 2], width)
   
     pygame.display.flip()
-    #clock.tick(60)
   
-  #while stream.is_active():
     inputs = []
     inputs.append(stream.read(CHUNK, False))
     inputs.append(stream.read(CHUNK, False))
@@ -131,6 +148,10 @@ while carryOn:
     color = END_TEXT
     max = np_data.max()
     min = np_data.min()
+
+    if in_night:
+      max *= 2
+
     if max > ALERT_THRESHOLD:
         color = RED_TEXT
         alert_count += 1
