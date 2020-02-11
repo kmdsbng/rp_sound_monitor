@@ -81,20 +81,21 @@ class ScreenRenderer:
     def render(self):
         self.screen.fill(self.back_ground_color)
 
-        pygame.draw.line(self.screen, RED, [0, 400 - ALERT_THRESHOLD / 2], [450, 400 - ALERT_THRESHOLD / 2], 1)
-        pygame.draw.line(self.screen, GRAY, [0, 401], [450, 401], 1)
+        pygame.draw.line(self.screen, RED, [0, 400 - ALERT_THRESHOLD / 2], [300, 400 - ALERT_THRESHOLD / 2], 1)
+        pygame.draw.line(self.screen, GRAY, [0, 401], [300, 401], 1)
 
         alert_count_text = MEDIUM_FONT.render("%d" % (self.alert_count), True, self.text_color)
-        screen.blit(alert_count_text, [500, 100])
+        screen.blit(alert_count_text, [350, 100])
 
         time_text = MEDIUM_FONT.render("%d/%d %d:%d" % (self.now.month, self.now.day, self.now.hour, self.now.minute), True, self.text_color)
-        screen.blit(time_text, [500, 0])
+        screen.blit(time_text, [300, 0])
 
         for i, w in enumerate(self.weathers):
             weather_text = MEDIUM2_FONT.render(w.date, True, self.text_color)
-            screen.blit(weather_text, [500, 200 + i * 100])
-            screen.blit(w.image, [650, 200 + i * 100])
-
+            screen.blit(weather_text, [350, 200 + i * 100])
+            screen.blit(w.image, [470, 200 + i * 100])
+            temp_text = MEDIUM2_FONT.render(w.temp_str(), True, self.text_color)
+            screen.blit(temp_text, [590, 200 + i * 100])
 
         # jp_text = MEDIUM_FONT.render(u"aあいう", True, self.text_color)
         # screen.blit(jp_text, [500, 150])
@@ -108,7 +109,7 @@ class ScreenRenderer:
         screen.blit(night_text, [700, 450])
 
         max_log_count = 200
-        max_x = 450
+        max_x = 300
         virtual_max_x = 600
 
         for index, sound in enumerate(self.sound_logs):
@@ -150,10 +151,18 @@ class ScreenRenderer:
 #     return labels
 
 class WeatherInfo:
-    def __init__(self, date, telop, image):
+    def __init__(self, date, telop, image, min_temp, max_temp):
       self.date = date
       self.telop = telop
       self.image = image
+      self.min_temp = min_temp
+      self.max_temp = max_temp
+
+    def temp_str(self):
+        if self.min_temp != "" or self.max_temp != "":
+            return u"%s〜%s℃" % (self.min_temp, self.max_temp)
+        else :
+            return ""
     
 
 class WeatherImageRepository:
@@ -188,13 +197,24 @@ def get_weathers():
 
     def get_weather(index):
        forecast = response_hash['forecasts'][index]
-       if (forecast['image'] is None):
+       if 'image' not in forecast:
            image = None
        else :
            image_url = forecast['image']['url']
            image = weather_image_repo.get_image(image_url)
 
-       return WeatherInfo(forecast['dateLabel'], forecast['telop'], image)
+       temperature = forecast['temperature']
+       if temperature['min'] is None:
+           min_temp = ''
+       else :
+           min_temp = temperature['min']['celsius']
+     
+       if temperature['max'] is None:
+           max_temp = ''
+       else :
+           max_temp = temperature['max']['celsius']
+
+       return WeatherInfo(forecast['dateLabel'], forecast['telop'], image, min_temp, max_temp)
 
     weathers = list(map(get_weather, indexes))
     return weathers
