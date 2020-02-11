@@ -31,6 +31,10 @@ YELLOW_TEXT='\033[33m'
 CYAN_TEXT='\033[36m'
 END_TEXT='\033[0m'
 
+# MEDIUM_FONT = pygame.font.Font(None, 60)
+SMALL_FONT = pygame.font.Font(None, 20)
+MEDIUM_FONT = pygame.font.SysFont("notosansmonocjkjp", 60)
+
 pixela_token = os.environ['PIXELA_TOKEN']
 pixela_command = "curl -X PUT https://pixe.la/v1/users/kmdsbng/graphs/soundalert/increment -H 'X-USER-TOKEN:%s'" % (pixela_token)
 
@@ -55,18 +59,17 @@ carryOn = True
 
 clock = pygame.time.Clock()
 
-font = pygame.font.Font(None, 60)
-small_font = pygame.font.Font(None, 20)
 
 
 class ScreenRenderer:
-    def __init__(self, screen, back_ground_color, alert_count, text_color, in_night, sound_logs):
+    def __init__(self, screen, back_ground_color, alert_count, text_color, in_night, sound_logs, now):
         self.screen = screen
         self.back_ground_color = back_ground_color
         self.alert_count = alert_count
         self.text_color = text_color
         self.in_night = in_night
         self.sound_logs = sound_logs
+        self.now = now
 
     def render(self):
         self.screen.fill(self.back_ground_color)
@@ -74,15 +77,21 @@ class ScreenRenderer:
         pygame.draw.line(self.screen, RED, [0, 400 - ALERT_THRESHOLD / 2], [600, 400 - ALERT_THRESHOLD / 2], 1)
         pygame.draw.line(self.screen, GRAY, [0, 401], [600, 401], 1)
 
-        alert_count_text = font.render("%d" % (self.alert_count), True, self.text_color)
+        alert_count_text = MEDIUM_FONT.render("%d" % (self.alert_count), True, self.text_color)
         screen.blit(alert_count_text, [605, 100])
+
+        time_text = MEDIUM_FONT.render("%d/%d %d:%d" % (self.now.month, self.now.day, self.now.hour, self.now.minute), True, self.text_color)
+        screen.blit(time_text, [500, 0])
+
+        # jp_text = MEDIUM_FONT.render(u"aあいう", True, self.text_color)
+        # screen.blit(jp_text, [500, 150])
 
         if self.in_night:
             night_str = "n"
         else:
             night_str = "d"
 
-        night_text = small_font.render(night_str, True, self.text_color)
+        night_text = SMALL_FONT.render(night_str, True, self.text_color)
         screen.blit(night_text, [700, 450])
 
         for index, sound in enumerate(self.sound_logs):
@@ -135,7 +144,7 @@ def main():
             text_color = TEXT_RED
 
 
-        screen_renderer = ScreenRenderer(screen, back_ground_color, alert_count, text_color, in_night, sound_logs)
+        screen_renderer = ScreenRenderer(screen, back_ground_color, alert_count, text_color, in_night, sound_logs, now)
         screen_renderer.render()
 
 
