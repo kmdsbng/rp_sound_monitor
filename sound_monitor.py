@@ -6,6 +6,9 @@ from pygame.locals import *
 import datetime
 import os
 import subprocess
+import requests
+import json
+import pprint
 
 pygame.init()
 
@@ -62,7 +65,7 @@ clock = pygame.time.Clock()
 
 
 class ScreenRenderer:
-    def __init__(self, screen, back_ground_color, alert_count, text_color, in_night, sound_logs, now):
+    def __init__(self, screen, back_ground_color, alert_count, text_color, in_night, sound_logs, now, weathers):
         self.screen = screen
         self.back_ground_color = back_ground_color
         self.alert_count = alert_count
@@ -70,6 +73,7 @@ class ScreenRenderer:
         self.in_night = in_night
         self.sound_logs = sound_logs
         self.now = now
+        self.weathers = weathers
 
     def render(self):
         self.screen.fill(self.back_ground_color)
@@ -82,6 +86,11 @@ class ScreenRenderer:
 
         time_text = MEDIUM_FONT.render("%d/%d %d:%d" % (self.now.month, self.now.day, self.now.hour, self.now.minute), True, self.text_color)
         screen.blit(time_text, [500, 0])
+
+        for i, w in enumerate(self.weathers):
+            weather_text = MEDIUM_FONT.render(w, True, self.text_color)
+            screen.blit(weather_text, [500, 200 + i * 100])
+
 
         # jp_text = MEDIUM_FONT.render(u"aあいう", True, self.text_color)
         # screen.blit(jp_text, [500, 150])
@@ -112,11 +121,42 @@ class ScreenRenderer:
             pygame.draw.line(screen, graph_color, [x, 400], [x, 400 - sound / 2], width)
 
 
+
+def get_weathers():
+    url = 'http://weather.livedoor.com/forecast/webservice/json/v1?city=260010'
+    
+    response = requests.get(url)
+    # print(response.status_code)
+    # print(response.text)
+    
+    response_hash = json.loads(response.text)
+    
+    indexes = list(range(0, 3))
+
+    def get_weather_label(index):
+       forecast = response_hash['forecasts'][index]
+       return "%s %s" % (forecast['dateLabel'], forecast['telop'])
+
+    labels = list(map(get_weather_label, indexes))
+    return labels
+
+
+
+
+# print(u'あいう')
+
+
+
+
 def main():
     alert_count = 0
     sound_logs =[]
     carryOn = True
     alert_count_date = datetime.date.today()
+
+    weathers = get_weathers()
+    # for w in weathers:
+    #     print(w)
 
     while carryOn:
         for event in pygame.event.get():
@@ -144,7 +184,7 @@ def main():
             text_color = TEXT_RED
 
 
-        screen_renderer = ScreenRenderer(screen, back_ground_color, alert_count, text_color, in_night, sound_logs, now)
+        screen_renderer = ScreenRenderer(screen, back_ground_color, alert_count, text_color, in_night, sound_logs, now, weathers)
         screen_renderer.render()
 
 
