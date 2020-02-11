@@ -9,6 +9,8 @@ import subprocess
 import requests
 import json
 import pprint
+import io
+from urllib2 import urlopen
 
 pygame.init()
 
@@ -37,6 +39,7 @@ END_TEXT='\033[0m'
 # MEDIUM_FONT = pygame.font.Font(None, 60)
 SMALL_FONT = pygame.font.Font(None, 20)
 MEDIUM_FONT = pygame.font.SysFont("notosansmonocjkjp", 60)
+MEDIUM2_FONT = pygame.font.SysFont("notosansmonocjkjp", 40)
 
 pixela_token = os.environ['PIXELA_TOKEN']
 pixela_command = "curl -X PUT https://pixe.la/v1/users/kmdsbng/graphs/soundalert/increment -H 'X-USER-TOKEN:%s'" % (pixela_token)
@@ -78,18 +81,19 @@ class ScreenRenderer:
     def render(self):
         self.screen.fill(self.back_ground_color)
 
-        pygame.draw.line(self.screen, RED, [0, 400 - ALERT_THRESHOLD / 2], [600, 400 - ALERT_THRESHOLD / 2], 1)
-        pygame.draw.line(self.screen, GRAY, [0, 401], [600, 401], 1)
+        pygame.draw.line(self.screen, RED, [0, 400 - ALERT_THRESHOLD / 2], [450, 400 - ALERT_THRESHOLD / 2], 1)
+        pygame.draw.line(self.screen, GRAY, [0, 401], [450, 401], 1)
 
         alert_count_text = MEDIUM_FONT.render("%d" % (self.alert_count), True, self.text_color)
-        screen.blit(alert_count_text, [605, 100])
+        screen.blit(alert_count_text, [500, 100])
 
         time_text = MEDIUM_FONT.render("%d/%d %d:%d" % (self.now.month, self.now.day, self.now.hour, self.now.minute), True, self.text_color)
         screen.blit(time_text, [500, 0])
 
         for i, w in enumerate(self.weathers):
-            weather_text = MEDIUM_FONT.render(w, True, self.text_color)
+            weather_text = MEDIUM2_FONT.render(w.date, True, self.text_color)
             screen.blit(weather_text, [500, 200 + i * 100])
+            screen.blit(w.image, [650, 200 + i * 100])
 
 
         # jp_text = MEDIUM_FONT.render(u"aあいう", True, self.text_color)
@@ -102,6 +106,10 @@ class ScreenRenderer:
 
         night_text = SMALL_FONT.render(night_str, True, self.text_color)
         screen.blit(night_text, [700, 450])
+
+        max_log_count = 200
+        max_x = 450
+        virtual_max_x = 600
 
         for index, sound in enumerate(self.sound_logs):
             graph_color = GREEN
@@ -118,9 +126,54 @@ class ScreenRenderer:
 
             sound_logs_len = len(self.sound_logs)
             x = (sound_logs_len - index) * 3
+            x = x * max_x / virtual_max_x
             pygame.draw.line(screen, graph_color, [x, 400], [x, 400 - sound / 2], width)
 
 
+
+# def get_weathers():
+#     url = 'http://weather.livedoor.com/forecast/webservice/json/v1?city=260010'
+#     
+#     response = requests.get(url)
+#     # print(response.status_code)
+#     # print(response.text)
+#     
+#     response_hash = json.loads(response.text)
+#     
+#     indexes = list(range(0, 3))
+# 
+#     def get_weather_label(index):
+#        forecast = response_hash['forecasts'][index]
+#        return "%s %s" % (forecast['dateLabel'], forecast['telop'])
+# 
+#     labels = list(map(get_weather_label, indexes))
+#     return labels
+
+class WeatherInfo:
+    def __init__(self, date, telop, image):
+      self.date = date
+      self.telop = telop
+      self.image = image
+    
+
+class WeatherImageRepository:
+    def __init__(self):
+        self.image_dic = {}
+
+    def get_image(self, url):
+        if url not in self.image_dic:
+            self.image_dic[url] = self.load_image(url)
+
+        return self.image_dic[url]
+
+    def load_image(self, url):
+        image_str = urlopen(url).read()
+        image_file = io.BytesIO(image_str)
+        #image = image_file
+        image = pygame.image.load(image_file)
+        rect = image.get_rect()
+        image = pygame.transform.scale(image, (rect.width * 2, rect.height * 2))
+        return image
 
 def get_weathers():
     url = 'http://weather.livedoor.com/forecast/webservice/json/v1?city=260010'
@@ -133,13 +186,18 @@ def get_weathers():
     
     indexes = list(range(0, 3))
 
-    def get_weather_label(index):
+    def get_weather(index):
        forecast = response_hash['forecasts'][index]
-       return "%s %s" % (forecast['dateLabel'], forecast['telop'])
+       if (forecast['image'] is None):
+           image = None
+       else :
+           image_url = forecast['image']['url']
+           image = weather_image_repo.get_image(image_url)
 
-    labels = list(map(get_weather_label, indexes))
-    return labels
+       return WeatherInfo(forecast['dateLabel'], forecast['telop'], image)
 
+    weathers = list(map(get_weather, indexes))
+    return weathers
 
 
 
@@ -155,8 +213,7 @@ def main():
     alert_count_date = datetime.date.today()
 
     weathers = get_weathers()
-    # for w in weathers:
-    #     print(w)
+    last_hour = -1 
 
     while carryOn:
         for event in pygame.event.get():
@@ -180,8 +237,8 @@ def main():
         if max_sound > ALERT_THRESHOLD:
             back_ground_color = BACK_GROUND_RED
 
-        if alert_count > 0:
-            text_color = TEXT_RED
+        # if alert_count > 0:
+        #     text_color = TEXT_RED
 
 
         screen_renderer = ScreenRenderer(screen, back_ground_color, alert_count, text_color, in_night, sound_logs, now, weathers)
@@ -208,25 +265,21 @@ def main():
         input = ''.join(inputs)
       
         np_data = np.frombuffer(input, dtype="int16")
-        #print(type(np_data))
-        #print(np_data.size)
-        #print(np_data.dtype)
-        #print(np_data.sum())
         color = END_TEXT
         max = np_data.max()
         min = np_data.min()
 
         if in_night:
-          max *= 2
+          max *= 1.7 
 
         if max > ALERT_THRESHOLD:
-            color = RED_TEXT
+            #color = RED_TEXT
             alert_count += 1
             subprocess.call(pixela_command, shell=True)
-        elif max > 200:
-            color = YELLOW_TEXT
-        elif max > 100:
-            color = CYAN_TEXT
+        #elif max > 200:
+            #color = YELLOW_TEXT
+        #elif max > 100:
+            #color = CYAN_TEXT
       
         sound_logs = sound_logs + [max]
         if len(sound_logs) > 200:
@@ -237,6 +290,11 @@ def main():
             alert_count = 0
             alert_count_date = datetime.date.today()
 
+        if last_hour != now.hour:
+            last_hour = now.hour
+            weathers = get_weathers()
+
+weather_image_repo = WeatherImageRepository()
 main()
 
 pygame.quit()
