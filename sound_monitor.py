@@ -11,6 +11,7 @@ import json
 import pprint
 import io
 from urllib2 import urlopen
+import re
 
 pygame.init()
 
@@ -38,8 +39,9 @@ END_TEXT='\033[0m'
 
 # MEDIUM_FONT = pygame.font.Font(None, 60)
 SMALL_FONT = pygame.font.Font(None, 20)
-MEDIUM_FONT = pygame.font.SysFont("notosansmonocjkjp", 60)
-MEDIUM2_FONT = pygame.font.SysFont("notosansmonocjkjp", 40)
+MEDIUM_FONT = pygame.font.SysFont("notosansmonocjkjp", 50)
+MEDIUM2_FONT = pygame.font.SysFont("notosansmonocjkjp", 30)
+KINENBI_FONT = pygame.font.SysFont("notosansmonocjkjp", 32)
 
 pixela_token = os.environ['PIXELA_TOKEN']
 pixela_command = "curl -X PUT https://pixe.la/v1/users/kmdsbng/graphs/soundalert/increment -H 'X-USER-TOKEN:%s'" % (pixela_token)
@@ -66,9 +68,12 @@ carryOn = True
 clock = pygame.time.Clock()
 
 
+def each_slice(arr, n):
+    return [arr[i:i + n] for i in range(0, len(arr), n)]
+
 
 class ScreenRenderer:
-    def __init__(self, screen, back_ground_color, alert_count, text_color, in_night, sound_logs, now, weathers):
+    def __init__(self, screen, back_ground_color, alert_count, text_color, in_night, sound_logs, now, weathers, kinenbi_str):
         self.screen = screen
         self.back_ground_color = back_ground_color
         self.alert_count = alert_count
@@ -77,25 +82,28 @@ class ScreenRenderer:
         self.sound_logs = sound_logs
         self.now = now
         self.weathers = weathers
+        self.kinenbi_str = kinenbi_str
+
+    def get_kinenbi_strs(self):
+        return each_slice(self.kinenbi_str, 14)
 
     def render(self):
         self.screen.fill(self.back_ground_color)
 
-        pygame.draw.line(self.screen, RED, [0, 400 - ALERT_THRESHOLD / 2], [300, 400 - ALERT_THRESHOLD / 2], 1)
-        pygame.draw.line(self.screen, GRAY, [0, 401], [300, 401], 1)
+
+        time_text = MEDIUM_FONT.render("%d/%d %d:%02d" % (self.now.month, self.now.day, self.now.hour, self.now.minute), True, self.text_color)
+        screen.blit(time_text, [480, 0])
 
         alert_count_text = MEDIUM_FONT.render("%d" % (self.alert_count), True, self.text_color)
-        screen.blit(alert_count_text, [350, 100])
+        screen.blit(alert_count_text, [480, 60])
 
-        time_text = MEDIUM_FONT.render("%d/%d %d:%d" % (self.now.month, self.now.day, self.now.hour, self.now.minute), True, self.text_color)
-        screen.blit(time_text, [300, 0])
 
         for i, w in enumerate(self.weathers):
             weather_text = MEDIUM2_FONT.render(w.date, True, self.text_color)
-            screen.blit(weather_text, [350, 200 + i * 100])
-            screen.blit(w.image, [470, 200 + i * 100])
+            screen.blit(weather_text, [480, 120 + i * 70])
+            screen.blit(w.image, [570, 120 + i * 70])
             temp_text = MEDIUM2_FONT.render(w.temp_str(), True, self.text_color)
-            screen.blit(temp_text, [590, 200 + i * 100])
+            screen.blit(temp_text, [670, 120 + i * 70])
 
         # jp_text = MEDIUM_FONT.render(u"aあいう", True, self.text_color)
         # screen.blit(jp_text, [500, 150])
@@ -108,9 +116,14 @@ class ScreenRenderer:
         night_text = SMALL_FONT.render(night_str, True, self.text_color)
         screen.blit(night_text, [700, 450])
 
+
         max_log_count = 200
+        x_offset = 480
         max_x = 300
         virtual_max_x = 600
+
+        pygame.draw.line(self.screen, RED, [x_offset, 400 - ALERT_THRESHOLD / 8], [x_offset + 300, 400 - ALERT_THRESHOLD / 8], 1)
+        pygame.draw.line(self.screen, GRAY, [x_offset, 476], [x_offset + 300, 476], 1)
 
         for index, sound in enumerate(self.sound_logs):
             graph_color = GREEN
@@ -127,9 +140,13 @@ class ScreenRenderer:
 
             sound_logs_len = len(self.sound_logs)
             x = (sound_logs_len - index) * 3
-            x = x * max_x / virtual_max_x
-            pygame.draw.line(screen, graph_color, [x, 400], [x, 400 - sound / 2], width)
+            x = x_offset + x * max_x / virtual_max_x
+            pygame.draw.line(screen, graph_color, [x, 475], [x, 475 - sound / 8], width)
 
+        kinenbi_strs = self.get_kinenbi_strs()
+        for i, str in enumerate(kinenbi_strs):
+            kinenbi_text = KINENBI_FONT.render(str, True, self.text_color)
+            screen.blit(kinenbi_text, [5, 5 + 32 * i])
 
 
 # def get_weathers():
@@ -192,8 +209,8 @@ def get_weathers():
     # print(response.text)
     
     response_hash = json.loads(response.text)
-    
-    indexes = list(range(0, 3))
+    size = len(response_hash['forecasts'])
+    indexes = list(range(0, size))
 
     def get_weather(index):
        forecast = response_hash['forecasts'][index]
@@ -223,10 +240,27 @@ def get_weathers():
 
 # print(u'あいう')
 
+def load_kinenbi_json():
+    path = '../kinenbi_data/kinenbi.json'
+    f = open(path, 'r')
+
+    json_data = json.load(f)
+    return json_data
+
+
+def get_kinenbi(kinenbi_json, date):
+    date_key = "%02d%02d" % (date.month, date.day)
+
+    if (date_key in kinenbi_json):
+        title = kinenbi_json[date_key]['title']
+        desc = re.sub(u'[\r\n 　\t]', '', kinenbi_json[date_key]['description'])
+        return u"%s　　%s" % (title, desc)
+    else:
+        return ""
 
 
 
-def main():
+def main(kinenbi_json):
     alert_count = 0
     sound_logs =[]
     carryOn = True
@@ -245,6 +279,7 @@ def main():
             pygame.display.set_mode(size, FULLSCREEN)
 
         now = datetime.datetime.now()
+        kinenbi_str = get_kinenbi(kinenbi_json, datetime.date.today())
         in_night = is_night_time(now)
 
         back_ground_color = BLACK
@@ -261,7 +296,7 @@ def main():
         #     text_color = TEXT_RED
 
 
-        screen_renderer = ScreenRenderer(screen, back_ground_color, alert_count, text_color, in_night, sound_logs, now, weathers)
+        screen_renderer = ScreenRenderer(screen, back_ground_color, alert_count, text_color, in_night, sound_logs, now, weathers, kinenbi_str)
         screen_renderer.render()
 
 
@@ -314,8 +349,9 @@ def main():
             last_hour = now.hour
             weathers = get_weathers()
 
+kinenbi_json = load_kinenbi_json()
 weather_image_repo = WeatherImageRepository()
-main()
+main(kinenbi_json)
 
 pygame.quit()
 
